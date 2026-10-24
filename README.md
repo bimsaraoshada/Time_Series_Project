@@ -1,4 +1,3 @@
-# Time_Series_Project
 # Exchange-Rate Forecasting for Overseas Tuition Planning
 
 Forecasting **USD/LKR, GBP/LKR and EUR/LKR** exchange rates to help Sri Lankan students understand the rupee cost and uncertainty of overseas tuition payments.
