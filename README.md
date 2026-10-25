@@ -1,208 +1,355 @@
 # Exchange-Rate Forecasting for Overseas Tuition Planning
 
-Forecasting **USD/LKR, GBP/LKR and EUR/LKR** exchange rates to help Sri Lankan students understand the rupee cost and uncertainty of overseas tuition payments.
+Forecasting exchange rates and volatility to help Sri Lankan students estimate the rupee cost and uncertainty of overseas tuition payments.
 
-Developed by third-year **Data Science and Business Analytics undergraduates at General Sir John Kotelawala Defence University (KDU)** for **CM3023 — Financial Time Series Analysis**.
+Developed for **CM3023 — Financial Time Series Analysis** by third-year **Data Science and Business Analytics undergraduates at General Sir John Kotelawala Defence University (KDU)**.
 
 ## Project overview
 
-Even when a university's tuition fee stays unchanged, its cost in Sri Lankan rupees changes with the exchange rate. This project compares statistical and machine-learning forecasting methods, evaluates exchange-rate volatility, and translates forecasts into illustrative tuition-payment budgets.
+Sri Lankan students paying overseas tuition face exchange-rate uncertainty. Even when a university’s foreign-currency fee remains unchanged, the amount needed in Sri Lankan rupees can increase or decrease.
 
-The analysis covers **5- and 20-reporting-day horizons**. Reporting days are observed dates in the dataset, rather than calendar days.
+This project compares traditional time-series and machine-learning models for forecasting **LKR per USD, GBP and EUR**, then converts those forecasts into illustrative tuition-payment budgets.
+
+Forecast horizons are **5 and 20 reporting days ahead**. Reporting days refer to observed dates in the dataset, rather than calendar days.
+
+The project also models volatility and produces simulated tuition-cost ranges to support budgeting.
 
 ## Objectives
 
-- Explore exchange-rate trends, stationarity, autocorrelation and volatility.
-- Compare forecasting models against a naïve, no-change benchmark.
-- Evaluate performance using chronological validation and walk-forward testing.
-- Examine the effect of the large exchange-rate movements observed in 2022.
-- Translate exchange-rate forecasts and simulated uncertainty into LKR tuition-cost scenarios.
+- Examine exchange-rate trends, stationarity, autocorrelation and volatility.
+- Compare traditional and machine-learning models against a naïve forecast.
+- Select models using chronological validation.
+- Evaluate selected models using walk-forward testing.
+- Compare EWMA and GARCH volatility forecasts.
+- Convert exchange-rate forecasts into tuition costs in LKR.
+- Present the results through an interactive tuition-cost dashboard.
 
 ## Dataset
 
-The supplied processed dataset contains **6,518 observations**, from **3 January 2000 to 31 December 2025**, with columns `date`, `USD`, `GBP` and `EUR`. All three rate columns represent **LKR per one unit of foreign currency**.
+The processed dataset contains **6,518 reporting-day observations**, covering **3 January 2000 to 31 December 2025**.
+
+Its columns are:
+
+| Column | Meaning |
+| --- | --- |
+| `date` | Observation date |
+| `USD` | LKR per US dollar |
+| `GBP` | LKR per British pound |
+| `EUR` | LKR per euro |
+
+### Data sources
 
 The project uses the following Federal Reserve Economic Data (FRED) series:
 
-| Source series | Original measurement | Conversion used |
+| Series | Original measurement | Conversion |
 | --- | --- | --- |
-| [DEXSLUS](https://fred.stlouisfed.org/series/DEXSLUS) | LKR per USD | USD/LKR = DEXSLUS |
-| [DEXUSUK](https://fred.stlouisfed.org/series/DEXUSUK) | USD per GBP | GBP/LKR = DEXSLUS × DEXUSUK |
-| [DEXUSEU](https://fred.stlouisfed.org/series/DEXUSEU) | USD per EUR | EUR/LKR = DEXSLUS × DEXUSEU |
+| [DEXSLUS](https://fred.stlouisfed.org/series/DEXSLUS) | LKR per USD | LKR per USD = DEXSLUS |
+| [DEXUSUK](https://fred.stlouisfed.org/series/DEXUSUK) | USD per GBP | LKR per GBP = DEXSLUS × DEXUSUK |
+| [DEXUSEU](https://fred.stlouisfed.org/series/DEXUSEU) | USD per EUR | LKR per EUR = DEXSLUS × DEXUSEU |
 
-GBP/LKR and EUR/LKR are derived cross-rates. They are not executable bank selling rates.
+The GBP and EUR series are derived cross-rates. They do not represent the exact selling rates charged by Sri Lankan banks.
 
-The modelling script checks for missing values, duplicate dates, non-numeric rates and non-positive values. It retains genuine 2022 observations and does not pad weekends or remove large movements as outliers.
+### Data preparation
+
+The preparation workflow:
+
+- Converts dates and exchange rates into suitable formats.
+- Checks missing values, duplicate dates and invalid rates.
+- Aligns the three source series by date.
+- Calculates the GBP/LKR and EUR/LKR cross-rates.
+- Retains observations from 2000 onward.
+- Saves the combined dataset for analysis.
+
+Missing reporting dates are not replaced with artificial weekend observations. Genuine large exchange-rate movements, including those in 2022, are retained.
 
 ## Methodology
 
-### Chronological evaluation
+### Chronological data split
 
 | Period | Purpose |
 | --- | --- |
 | 2000–2021 | Initial training and diagnostics |
 | 2022–2023 | Validation and model selection |
-| 2024–2025 | Final walk-forward testing |
+| 2024–2025 | Final testing |
 
-Models are selected using **validation RMSE**, with their configurations fixed before final testing. At each walk-forward origin, models are refitted using information available at that time. The full run uses origins spaced five observations apart and compares expanding windows with recent windows of 1,250 observations.
+The data are split chronologically, rather than randomly.
 
-The 2022 exchange-rate shock remains in the validation period. Separate 2022 and 2023 validation summaries help examine performance across different conditions. Updating models after new observations become available does not imply that an unexpected shock could have been predicted in advance.
+Model configurations are selected using **validation RMSE** and fixed before final testing. Models are refitted at each forecast origin using only information available at that time.
 
-### Exchange-rate models
+The full evaluation uses origins spaced five observations apart and compares:
 
-| Model family | Implementation |
+- Expanding training windows.
+- Recent training windows containing 1,250 observations.
+
+The 2022 exchange-rate shock remains in the validation period. Updating models as new observations become available helps them adapt, but does not mean an unexpected shock could have been predicted in advance.
+
+### Log transformations and features
+
+Log transformations express exchange-rate movements on a proportional scale. Log returns are used to analyse changes and volatility, while forecasts are converted back into exchange-rate levels for evaluation and tuition calculations.
+
+Machine-learning features include:
+
+- Current and lagged log returns.
+- Rolling mean returns.
+- Rolling standard deviations.
+- Deviations from rolling log-rate means.
+
+Pooled machine-learning models also include **one-hot-encoded currency indicators**, allowing a shared model to distinguish USD, GBP and EUR.
+
+Features are constructed using information available at the forecast origin.
+
+### Exchange-rate forecasting models
+
+| Model family | Description |
 | --- | --- |
-| Naïve / random walk | Latest observed rate |
-| ARIMA | Five candidate specifications on log rates, including a drift variant |
+| Naïve / random walk | Future rate equals the latest observed rate |
+| ARIMA | Candidate specifications fitted to log exchange rates |
 | Exponential smoothing | Simple exponential smoothing and automatic non-seasonal ETS |
-| Linear regression | Lagged-return and broader feature specifications |
-| Random Forest | Currency-specific models using `ranger` |
+| Linear regression | Models using lagged returns and other constructed features |
+| Random Forest | Currency-specific models |
 | XGBoost | Currency-specific boosted-tree models |
 | VAR | Joint modelling of the three return series |
-| Pooled Random Forest and XGBoost | Shared models with currency indicator features |
+| Pooled Random Forest | Shared model with currency indicators |
+| Pooled XGBoost | Shared boosted-tree model with currency indicators |
 
-Features include lagged log returns, rolling means, rolling standard deviations and deviations from rolling log-rate means. Training diagnostics include ADF/KPSS tests, ACF/PACF plots, ARIMA information criteria and residual checks. `auto.arima()` is also used as a cross-check.
+Training diagnostics include stationarity tests, ACF/PACF plots and residual checks.
 
-### Volatility and uncertainty
+### Volatility modelling
 
-- EWMA variance forecasts with candidate decay factors.
-- GARCH(1,1) with normal and Student-t innovations.
-- Validation-based volatility selection using QLIKE.
-- GARCH simulations for 95% exchange-rate and tuition-cost intervals.
-- Interval backtesting using empirical coverage and mean width.
+Volatility is evaluated separately from exchange-rate point forecasting.
 
-GARCH intervals are separate simulation-based scenarios; they are not prediction intervals for the selected Random Forest, ARIMA or ETS point model.
+The models compared are:
 
-### Evaluation metrics
+- **EWMA**, using candidate decay factors.
+- **GARCH(1,1)**, using normal and Student-t innovations.
 
-- **MAE and RMSE:** exchange-rate forecast errors, measured in LKR per foreign-currency unit.
-- **R² versus naïve:** `1 − SSE(model) / SSE(naïve)`; positive values indicate improvement over the benchmark.
-- **QLIKE and MSE:** volatility losses evaluated against squared-return proxies.
-- **95% interval coverage and width:** observed uncertainty performance.
+Volatility configurations are selected using validation QLIKE. Forecast variances are evaluated against squared returns, which are a noisy proxy for unobserved volatility.
 
-A high R² on exchange-rate levels alone does not establish useful forecasting performance. Benchmark-relative errors are the main comparison.
+### Probabilistic forecasts
 
-## Results reported in the assignment
+GARCH simulations produce 95% exchange-rate ranges. These are converted into tuition-cost ranges by multiplying by the specified foreign-currency fee.
 
-The following values come from the supplied completed report and have not been independently rerun for this README. These are the models selected during validation, evaluated on the final test period.
+The GARCH ranges are separate simulation-based scenarios. They are not prediction intervals for the selected Random Forest, ARIMA or ETS point forecasts.
+
+## Evaluation metrics
+
+| Metric | Purpose |
+| --- | --- |
+| MAE | Average absolute exchange-rate forecast error |
+| RMSE | Forecast error measure that gives greater weight to large errors |
+| R² versus naïve | Improvement in squared error relative to the naïve benchmark |
+| RMSE improvement (%) | Percentage reduction in RMSE compared with naïve |
+| QLIKE | Volatility forecast loss |
+| Volatility MSE | Squared error against the squared-return proxy |
+| Interval coverage | Percentage of actual rates inside the forecast range |
+| Mean interval width | Average width of the forecast range |
+
+Lower MAE, RMSE and volatility losses indicate better performance.
+
+Positive RMSE improvement means a model outperformed the naïve forecast. Negative improvement means it performed worse. These percentages are not classification accuracy scores.
+
+## Main results
+
+The following models were selected using **2022–2023 validation data** and evaluated on **2024–2025 test data**.
 
 | Currency | Horizon | Validation-selected model | Test RMSE | RMSE improvement over naïve |
 | --- | --- | --- | ---: | ---: |
-| USD/LKR | 5 reporting days | Pooled Random Forest, expanding window | 1.6706 | 0.27% |
-| GBP/LKR | 5 reporting days | Pooled Random Forest, expanding window | 4.5327 | −4.04% |
-| EUR/LKR | 5 reporting days | Pooled Random Forest, expanding window | 3.6850 | 0.10% |
-| USD/LKR | 20 reporting days | ARIMA(1,1,1), recent window | 3.4980 | 7.77% |
-| GBP/LKR | 20 reporting days | Automatic ETS, recent window | 8.5528 | 1.61% |
-| EUR/LKR | 20 reporting days | Automatic ETS, recent window | 7.8823 | 1.68% |
+| USD | 5 reporting days | Pooled Random Forest, expanding window | 1.6706 | 0.27% |
+| GBP | 5 reporting days | Pooled Random Forest, expanding window | 4.5327 | −4.04% |
+| EUR | 5 reporting days | Pooled Random Forest, expanding window | 3.6850 | 0.10% |
+| USD | 20 reporting days | ARIMA(1,1,1), recent window | 3.4980 | 7.77% |
+| GBP | 20 reporting days | Automatic ETS, recent window | 8.5528 | 1.61% |
+| EUR | 20 reporting days | Automatic ETS, recent window | 7.8823 | 1.68% |
 
-Positive improvement means lower RMSE than naïve; negative improvement means worse performance. These are not classification accuracy percentages.
+### Interpretation
 
-No model consistently dominated across all currencies and horizons. Five-day improvements were small, and the selected GBP model underperformed the benchmark. The selected twenty-day models showed larger gains. The report also found that volatility rankings and interval coverage varied by currency, including undercoverage for USD twenty-day intervals.
+- No model consistently outperformed the others across all currencies and horizons.
+- Five-day improvements over the naïve benchmark were small.
+- The selected five-day GBP model performed worse than naïve.
+- The selected twenty-day models achieved larger improvements.
+- Machine learning did not consistently outperform traditional models.
+- Volatility-model performance varied by currency.
+- USD twenty-day GARCH intervals showed coverage below the nominal 95% target.
 
-## Project files
+The models used in the tuition application remain those selected during validation. They are not replaced retrospectively using test-period results.
 
-The supplied repository archive contains the preparation and EDA files below. The modelling script and completed report were supplied separately and should be added to the repository if they are not already present.
+## Project organisation
 
-| Path | Purpose |
+| File or folder | Purpose |
 | --- | --- |
-| `data/raw/` | Original exchange-rate CSV files |
-| `data/processed/exchange_rates_lkr.csv` | Combined exchange-rate dataset |
-| `notebooks/01_data_preparation.ipynb` | Python data-preparation notebook |
-| `notebooks/02_exploratory_data_analysis.ipynb` | Python EDA notebook |
-| `R/01_data_preparation.R` | R data-preparation script |
-| `R/02_exploratory_data_analysis.R` | R EDA script |
-| `R/helpers.R` | Shared R helpers |
-| `exchange_rate_modelling_v3.R` | Main modelling and evaluation script; add at repository root |
-| `FTS_Assignment_completed_copy.docx` | Completed assignment report; supplied separately |
-| `results/run_YYYYMMDD_HHMMSS/` | Output directory created by each modelling run |
+| `data/raw/` | Original exchange-rate datasets |
+| `data/processed/` | Prepared datasets |
+| `01_data_preparation.R` | Data cleaning, alignment and cross-rate construction |
+| `02_exploratory_data_analysis.R` | Exploratory analysis and visualisations |
+| `03_exchange_rate_modelling.R` | Model fitting, validation, testing and tuition scenarios |
+| `dashboard.R` | Interactive tuition-cost dashboard |
+| `results/` | Saved Excel results and figures |
+| `Documents/` | Project report and supporting documents |
+| `README.md` | Project description and running instructions |
 
-## How to run the modelling workflow
+## How to run the project
 
-### 1. Open the project
+### 1. Download or clone the repository
 
-Download or clone the repository and open its root folder as an RStudio project. Place `exchange_rate_modelling_v3.R` in that folder.
+Open the repository folder in RStudio.
 
-### 2. Set the dataset path
+Keep the working directory at the repository root so relative file paths work correctly.
 
-In section 2 of the script, point `DATA_FILE` to the processed dataset:
+### 2. Prepare the dataset
+
+Run:
 
 ```r
+# Clean and combine the raw exchange-rate data
+source("01_data_preparation.R")
+```
+
+If the processed dataset is already supplied, it can be used directly.
+
+### 3. Run the exploratory analysis
+
+```r
+# Produce exploratory summaries and graphs
+source("02_exploratory_data_analysis.R")
+```
+
+### 4. Check the modelling settings
+
+In `03_exchange_rate_modelling.R`, confirm that the dataset path matches its location:
+
+```r
+# Location of the prepared dataset
 DATA_FILE <- "data/processed/exchange_rates_lkr.csv"
 ```
 
-Alternatively, place the separately supplied CSV beside the script and rename `exchange_rates_lkr(1).csv` to `exchange_rates_lkr.csv` to use the script's default path.
-
-### 3. Review the run settings
+Review the main settings:
 
 ```r
+# Use FALSE for the full analysis
 QUICK_RUN <- FALSE
+
+# Include joint and pooled model comparisons
 RUN_VAR <- TRUE
 RUN_POOLED <- TRUE
+
+# Forecast horizons in reporting days
 HORIZONS <- c(5L, 20L)
+
+# Illustrative foreign-currency tuition amounts
 TUITION <- c(USD = 5000, GBP = 5000, EUR = 5000)
 ```
 
-Set `QUICK_RUN <- TRUE` only for a faster rehearsal: it uses USD, fewer origins, and skips VAR and pooled extensions. Use `FALSE` for the full analysis and reported model comparisons.
+A quick run is intended for checking the workflow and does not reproduce the complete reported analysis.
 
-The tuition amounts are hypothetical inputs and can be changed to the fees being considered.
-
-### 4. Run the script in order
-
-Run the numbered sections in RStudio using **Ctrl + Enter**. Section 1 installs missing packages, so an internet connection is required for package installation. Full walk-forward fitting can take considerable time.
-
-Main dependencies:
+### 5. Run the modelling script
 
 ```r
-c("readr", "dplyr", "ggplot2", "forecast", "tseries", "zoo",
-  "ranger", "xgboost", "rugarch", "vars", "writexl")
+# Fit models and save evaluation results
+source("03_exchange_rate_modelling.R")
 ```
 
-The script stops if its training-period KPSS check does not support the configured `d = 1` ARIMA family. Review the saved diagnostics before changing that modelling assumption.
+Alternatively, run its numbered sections in order using **Ctrl + Enter**.
 
-### 5. Inspect the outputs
+The full walk-forward analysis can take considerable time. An internet connection is required when installing missing packages.
 
-Each run creates a timestamped folder under `results/`. Tables are printed in the console and saved as Excel files; figures are displayed in RStudio and saved as PNGs.
+If the training-only KPSS check stops the script, review the saved diagnostics before changing the configured ARIMA differencing assumption.
+
+### 6. Open the dashboard
+
+In `dashboard.R`, set `RUN_FOLDER` to the folder containing the saved tuition forecasts. For example:
+
+```r
+# Folder containing the tuition forecast Excel files
+RUN_FOLDER <- "results/run_20261024_113027"
+```
+
+Then run:
+
+```r
+# Launch the interactive tuition calculator
+source("dashboard.R")
+```
+
+The dashboard requires:
+
+- `10_tuition_point_forecasts.xlsx`
+- `10_garch_tuition_scenarios.xlsx`
+
+Keep these files in the expected results folder.
+
+## Software and packages
+
+The project uses **R and RStudio**.
+
+Main modelling packages include:
+
+```r
+c(
+  "readr", "dplyr", "ggplot2", "forecast", "tseries",
+  "zoo", "ranger", "xgboost", "rugarch", "vars", "writexl"
+)
+```
+
+The tuition dashboard also uses `shiny` and `readxl`.
+
+R and package versions are recorded in the saved session information.
+
+## Saved results
+
+The modelling workflow saves tables as Excel files and figures as PNG images.
+
+Important outputs include:
 
 | Output | Contents |
 | --- | --- |
-| `04_validation_scores.xlsx` | Validation model comparisons |
-| `05_chosen_point_models.xlsx` | Validation-selected models |
+| `04_validation_scores.xlsx` | Validation performance |
+| `05_chosen_point_models.xlsx` | Models selected using validation |
 | `06_test_scores.xlsx` | Final test performance |
-| `08_volatility_test_scores.xlsx` | Volatility evaluation |
+| `08_volatility_test_scores.xlsx` | Volatility forecast evaluation |
 | `09_garch_interval_test_scores.xlsx` | Interval coverage and width |
-| `10_tuition_point_forecasts.xlsx` | Point forecasts converted into LKR tuition costs |
+| `10_tuition_point_forecasts.xlsx` | Point forecasts and LKR tuition costs |
 | `10_garch_tuition_scenarios.xlsx` | Simulated tuition-cost ranges |
-| `fit_failures.xlsx` | Recorded model-fitting failures |
-| `11_sessionInfo.txt` | R and package versions for reproducibility |
+| `fit_failures.xlsx` | Recorded fitting failures |
+| `11_sessionInfo.txt` | R and package versions |
 
-Additional outputs include diagnostics, prediction tables, plots, run settings and fitted model objects. The base random seed is `2026`.
+Excel files can be downloaded and opened in Excel or another compatible spreadsheet application. PNG figures can be viewed directly in the repository.
 
-## Tuition-cost application
+## Tuition-cost dashboard
 
-**Estimated tuition cost in LKR = foreign-currency tuition fee × forecast exchange rate.**
+The dashboard allows users to:
 
-For an illustrative USD 5,000 fee, the application multiplies each USD/LKR forecast by 5,000. Simulated rate quantiles are converted into tuition-cost ranges in the same way.
+- Select USD, GBP or EUR.
+- Select a 5- or 20-reporting-day horizon.
+- Enter a foreign-currency tuition fee.
+- View the estimated tuition cost in LKR.
+- Compare the latest rate with the forecast rate.
+- View the GARCH-based low and high scenarios.
 
-The script's final scenarios are issued **as of 31 December 2025**. They are historical forecast-origin scenarios, not live exchange-rate forecasts. Their horizons refer to subsequent reporting observations, not assigned calendar payment dates.
+**Estimated tuition cost in LKR = foreign-currency fee × forecast exchange rate.**
+
+The supplied forecasts are issued **as of 31 December 2025**. They are historical forecast-origin scenarios, rather than live forecasts.
+
+Changing the fee in the dashboard recalculates the tuition amount using saved forecasts; it does not retrain the models.
 
 ## Limitations
 
-- Unexpected shocks and changes in exchange-rate regimes can reduce forecast reliability.
-- The three series share an LKR component, so their movements are related.
-- The evaluated model families use limited candidate configurations.
-- Overlapping forecast horizons create dependence between errors.
-- Squared returns are noisy proxies for unobserved volatility.
-- Simulated intervals omit parameter uncertainty and unforeseen regimes.
-- Tuition scenarios assume fixed foreign-currency fees and exclude bank spreads, transfer charges, living costs and fee increases.
+- Unexpected shocks and exchange-rate regime changes can reduce forecast reliability.
+- The three currency series share an LKR component and are related.
+- Only a limited set of model configurations was evaluated.
+- Overlapping forecast horizons create dependence between forecast errors.
+- Squared returns are noisy proxies for volatility.
+- Simulated intervals do not include all sources of uncertainty.
+- Tuition scenarios assume the foreign-currency fee remains unchanged.
+- Bank spreads, transfer charges, living costs and fee increases are excluded.
 
-The project supports budgeting analysis. It does not demonstrate realised savings or establish the cheapest payment date.
+The project supports budgeting and risk awareness. It does not guarantee savings or identify the cheapest payment date.
 
 ## Academic context and acknowledgements
 
-**Module:** Financial Time Series Analysis (CM3023)  
+**Module:** CM3023 — Financial Time Series Analysis  
 **Programme:** Data Science and Business Analytics — Third Year  
 **Department:** Computational Mathematics  
 **Faculty:** Computing  
-**University:** General Sir John Kotelawala Defence University, Sri Lanka
+**University:** General Sir John Kotelawala Defence University, Sri Lanka  
 
-We sincerely thank **Ms. Khas Harischandra** for her guidance, feedback and encouragement throughout this assignment. We also acknowledge the Federal Reserve Bank of St. Louis for providing FRED data, the developers of the open-source software used in the analysis, and all group members for their contributions.
+We sincerely thank **Ms. KHAS Harischandra** for her guidance, feedback and encouragement throughout this assignment. We also acknowledge the Federal Reserve Bank of St. Louis for providing access to FRED data and the developers of the open-source software used in this project.
