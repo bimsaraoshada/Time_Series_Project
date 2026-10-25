@@ -16,8 +16,7 @@
 #
 # OUTPUT
 #   Tables are printed in the R Console and plots appear in the RStudio Plots
-#   pane. This script does not save any files; use the Export button in the
-#   Plots pane if a figure must be saved.
+#   pane.
 #
 # HELPER FUNCTIONS USED (all defined in helpers.R)
 #   describe_cols()          summary table (count, mean, std, min, quartiles, max)
@@ -61,10 +60,6 @@ PROJECT_DIR <- "C:/Users/User/Downloads/tuition-exchange-rate-forecasting-main (
 # Location of helpers.R. Leave "" to search for it automatically inside the
 # project folder.
 HELPERS_PATH <- ""
-
-
-# ---- 02 - Exploratory Data Analysis (EDA) ----
-
 
 # ---- 2. Import Libraries and Load the Processed Data ----
 
